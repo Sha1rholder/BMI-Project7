@@ -1,0 +1,220 @@
+"""
+距离计算器接口定义
+"""
+
+from abc import ABC, abstractmethod
+from typing import List, Optional
+import numpy as np
+from scipy.spatial import KDTree
+
+from .data_models import ResidueInfo, WaterInfo
+
+
+class DistanceCalculator(ABC):
+    """距离计算器抽象基类"""
+
+    @abstractmethod
+    def compute_min_distances(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+    ) -> np.ndarray:
+        """
+        计算每个残基到最近水分子的最小距离
+
+        Args:
+            residues: 残基列表
+            waters: 水分子信息
+
+        Returns:
+            np.ndarray: 最小距离数组，形状 (n_residues,)
+        """
+        pass
+
+    @abstractmethod
+    def count_waters_within_radius(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+        radius: float,
+    ) -> np.ndarray:
+        """
+        统计每个残基半径R内的水分子数量
+
+        Args:
+            residues: 残基列表
+            waters: 水分子信息
+            radius: 统计半径（Å）
+
+        Returns:
+            np.ndarray: 水分子数量数组，形状 (n_residues,)
+        """
+        pass
+
+
+class ChunkedDistanceCalculator(DistanceCalculator):
+    """
+    分块距离计算器
+    使用分块计算优化内存使用
+    """
+
+    def __init__(self, chunk_size: int = 5000):
+        """
+        Args:
+            chunk_size: 分块大小
+        """
+        self.chunk_size = chunk_size
+        self._water_tree: Optional[KDTree] = None
+        self._water_coords: Optional[np.ndarray] = None
+
+    def compute_min_distances(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+    ) -> np.ndarray:
+        """计算最小距离（分块版本）"""
+        if waters.is_empty():
+            return np.full(len(residues), np.inf)
+
+        res_coords = np.vstack([r.coord for r in residues])
+        water_coords = waters.coords
+
+        n_res = len(residues)
+        min_d2 = np.full(n_res, np.inf)
+        n_w = len(water_coords)
+
+        # 分块计算
+        for start in range(0, n_w, self.chunk_size):
+            end = min(start + self.chunk_size, n_w)
+            diff = res_coords[:, None, :] - water_coords[None, start:end, :]
+            d2 = np.sum(diff * diff, axis=2)
+            min_d2 = np.minimum(min_d2, np.min(d2, axis=1))
+
+        return np.sqrt(min_d2)
+
+    def count_waters_within_radius(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+        radius: float,
+    ) -> np.ndarray:
+        """统计半径内的水分子数量"""
+        if waters.is_empty():
+            return np.zeros(len(residues), dtype=int)
+
+        res_coords = np.vstack([r.coord for r in residues])
+        water_coords = waters.coords
+
+        # 构建或重用KDTree
+        if (self._water_tree is None or
+            self._water_coords is None or
+            not np.array_equal(self._water_coords, water_coords)):
+            self._water_tree = KDTree(water_coords)
+            self._water_coords = water_coords.copy()
+
+        # 批量查询
+        counts = np.zeros(len(residues), dtype=int)
+        for i, coord in enumerate(res_coords):
+            indices = self._water_tree.query_ball_point(coord, radius)
+            counts[i] = len(indices)
+
+        return counts
+
+
+class PerAtomDistanceCalculator(DistanceCalculator):
+    """
+    原子级距离计算器
+    计算每个非氢原子到最近水分子的距离
+    """
+
+    def __init__(self, chunk_size: int = 5000):
+        """
+        Args:
+            chunk_size: 分块大小
+        """
+        self.chunk_size = chunk_size
+
+    def compute_min_distances(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+    ) -> np.ndarray:
+        """
+        原子级最小距离计算
+        注意：这里返回的是残基质心到水分子的最小距离
+        原子级距离在collect_peratom_dists中单独处理
+        """
+        # 使用质心距离作为基础
+        calculator = ChunkedDistanceCalculator(self.chunk_size)
+        return calculator.compute_min_distances(residues, waters)
+
+    def count_waters_within_radius(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+        radius: float,
+    ) -> np.ndarray:
+        """统计半径内的水分子数量"""
+        calculator = ChunkedDistanceCalculator(self.chunk_size)
+        return calculator.count_waters_within_radius(residues, waters, radius)
+
+    def collect_atom_distances(
+        self,
+        residues: List[ResidueInfo],
+        waters: WaterInfo,
+        structure,
+    ) -> dict:
+        """
+        收集每个原子的距离
+
+        Args:
+            residues: 残基列表
+            waters: 水分子信息
+            structure: BioPython结构对象
+
+        Returns:
+            dict: 键为 (chain, resnum)，值为原子距离数组
+        """
+        from scipy.spatial import KDTree
+
+        if waters.is_empty():
+            water_tree = None
+        else:
+            water_tree = KDTree(waters.coords)
+
+        dists_map = {}
+        for r in residues:
+            try:
+                residue = structure[0][r.chain][(" ", r.resnum, " ")]
+            except Exception:
+                key = (r.chain, str(r.resnum))
+                dists_map[key] = np.array([np.inf])
+                continue
+
+            # 收集非氢原子坐标
+            atom_coords = []
+            for atom in residue:
+                elem = getattr(atom, "element", "").upper()
+                aname = atom.get_name().strip().upper()
+                if elem == "H" or aname.startswith("H"):
+                    continue
+                atom_coords.append(atom.coord)
+
+            if not atom_coords:
+                key = (r.chain, str(r.resnum))
+                dists_map[key] = np.array([np.inf])
+                continue
+
+            atom_coords = np.array(atom_coords, dtype=float)
+
+            # 计算距离
+            if water_tree is not None:
+                dists, _ = water_tree.query(atom_coords, k=1)
+                dists = np.array(dists, dtype=float)
+            else:
+                dists = np.full(len(atom_coords), np.inf)
+
+            key = (r.chain, str(r.resnum))
+            dists_map[key] = dists
+
+        return dists_map
