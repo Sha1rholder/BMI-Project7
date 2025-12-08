@@ -3,12 +3,11 @@
 """
 
 from pathlib import Path
-from typing import Union
 
 from core.data_models import AnalysisConfig
 
 
-def validate_pdb_file(filepath: Union[str, Path]) -> bool:
+def validate_pdb_file(filepath: str | Path) -> bool:
     """
     验证PDB文件
 
@@ -77,7 +76,7 @@ def validate_config(config: AnalysisConfig) -> bool:
     return True
 
 
-def validate_output_dir(directory: Union[str, Path]) -> Path:
+def validate_output_dir(directory: str | Path) -> Path:
     """
     验证输出目录
 

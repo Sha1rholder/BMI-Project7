@@ -5,13 +5,12 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 
 def setup_logger(
     name: str = "solvent_analysis",
     level: int = logging.INFO,
-    log_file: Optional[str] = None,
+    log_file: str | None = None,
     console: bool = True,
 ) -> logging.Logger:
     """

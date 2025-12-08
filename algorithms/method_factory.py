@@ -2,8 +2,6 @@
 方法工厂
 """
 
-from typing import Union, Optional
-
 from core.data_models import MethodType, AnalysisConfig
 from algorithms.centroid_method import CentroidMethod
 from algorithms.peratom_method import PerAtomMethod
@@ -14,9 +12,9 @@ class MethodFactory:
 
     @staticmethod
     def create_method(
-        method_type: Union[MethodType, str],
-        config: Optional[AnalysisConfig] = None,
-    ) -> Union[CentroidMethod, PerAtomMethod]:
+        method_type: MethodType | str,
+        config: AnalysisConfig | None = None,
+    ) -> CentroidMethod | PerAtomMethod:
         """
         创建分析方法
 
@@ -25,7 +23,7 @@ class MethodFactory:
             config: 分析配置
 
         Returns:
-            Union[CentroidMethod, PerAtomMethod]: 分析方法实例
+            CentroidMethod | PerAtomMethod: 分析方法实例
         """
         # 处理字符串输入
         if isinstance(method_type, str):

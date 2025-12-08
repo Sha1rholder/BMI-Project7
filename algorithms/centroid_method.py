@@ -2,8 +2,6 @@
 质心法实现
 """
 
-from typing import List, Optional
-
 from core.data_models import (
     ResidueInfo,
     WaterInfo,
@@ -18,7 +16,7 @@ from core.accessibility_evaluator import CentroidEvaluator
 class CentroidMethod:
     """质心法"""
 
-    def __init__(self, config: Optional[AnalysisConfig] = None):
+    def __init__(self, config: AnalysisConfig | None = None):
         """
         Args:
             config: 分析配置
@@ -31,10 +29,10 @@ class CentroidMethod:
 
     def analyze(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         structure=None,  # 保持接口一致，但质心法不需要structure
-    ) -> List[AccessibilityResult]:
+    ) -> list[AccessibilityResult]:
         """
         执行质心法分析
 
@@ -44,7 +42,7 @@ class CentroidMethod:
             structure: BioPython结构对象（可选）
 
         Returns:
-            List[AccessibilityResult]: 可及性结果
+            list[AccessibilityResult]: 可及性结果
         """
         # 验证输入
         if not residues:

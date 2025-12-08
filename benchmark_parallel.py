@@ -16,8 +16,32 @@ import sys
 import time
 import argparse
 from pathlib import Path
-from typing import List, Dict, Any
 import numpy as np
+from typing import (
+    TypedDict,
+)  # 这个为了保护类型安全避免不了，必须显式导入，且已经是3.12+的推荐写法，不用改
+
+
+class ProcessMetrics(TypedDict):
+    """进程性能指标"""
+
+    mean: float
+    std: float
+    speedup: float
+    efficiency: float
+
+
+class BenchmarkResult(TypedDict):
+    """基准测试结果"""
+
+    method: str
+    num_residues: int
+    num_waters: int
+    process_times: dict[int, ProcessMetrics]
+    result_consistency: bool
+    serial_time: float
+    serial_time_std: float
+
 
 # 添加项目路径以便导入模块
 sys.path.insert(0, str(Path(__file__).parent))
@@ -31,15 +55,15 @@ def benchmark_method(
     wet_pdb: str,
     dry_pdb: str,
     method_type: MethodType,
-    num_processes_list: List[int],
+    num_processes_list: list[int],
     num_runs: int = 3,
-) -> Dict[str, Any]:
+) -> BenchmarkResult:
     """
     基准测试方法
 
     Args:
         wet_pdb: 含水PDB文件路径
-        dry_pdb: 无水PDB文件路径（用于FreeSASA对比）
+        dry_pdb: 无水PDB文件路径（目前未使用，保留供未来FreeSASA对比）
         method_type: 方法类型（质心法或原子级方法）
         num_processes_list: 要测试的并行进程数列表
         num_runs: 每个配置的运行次数（取平均值）
@@ -62,14 +86,14 @@ def benchmark_method(
         f"系统规模: {len(residues)} 个残基, {len(waters.coords) if waters.coords is not None else 0} 个水分子"
     )
 
-    results = {
+    results: BenchmarkResult = {
         "method": method_type.value,
         "num_residues": len(residues),
         "num_waters": len(waters.coords) if waters.coords is not None else 0,
-        "process_times": {},  # 进程数 -> 时间列表
-        "speedups": {},  # 进程数 -> 加速比
-        "memory_deltas": {},  # 进程数 -> 内存增量（近似）
-        "result_consistency": True,  # 结果一致性标志
+        "process_times": {},
+        "result_consistency": True,
+        "serial_time": 0.0,
+        "serial_time_std": 0.0,
     }
 
     # 首先运行串行版本作为基准和正确性参考
@@ -80,22 +104,22 @@ def benchmark_method(
     serial_times = []
     serial_results_list = []
 
-    for run in range(num_runs):
+    for run_idx in range(num_runs):
         start_time = time.perf_counter()
         serial_results = serial_method.analyze(residues, waters, structure)
         end_time = time.perf_counter()
         serial_times.append(end_time - start_time)
         serial_results_list.append(serial_results)
 
-        if run == 0:
+        if run_idx == 0:
             # 记录串行结果用于比较
             serial_accessible = sum(1 for r in serial_results if r.accessible)
             print(
-                f"   运行 {run+1}: {serial_times[-1]:.3f}s, 可及残基: {serial_accessible}/{len(serial_results)}"
+                f"   运行 {run_idx+1}: {serial_times[-1]:.3f}s, 可及残基: {serial_accessible}/{len(serial_results)}"
             )
 
-    avg_serial_time = np.mean(serial_times)
-    std_serial_time = np.std(serial_times)
+    avg_serial_time = float(np.mean(serial_times))
+    std_serial_time = float(np.std(serial_times))
     results["serial_time"] = avg_serial_time
     results["serial_time_std"] = std_serial_time
     print(f"   平均时间: {avg_serial_time:.3f}s (±{std_serial_time:.3f}s)")
@@ -111,14 +135,14 @@ def benchmark_method(
         parallel_times = []
         all_consistent = True
 
-        for run in range(num_runs):
+        for run_idx in range(num_runs):
             start_time = time.perf_counter()
             parallel_results = parallel_method.analyze(residues, waters, structure)
             end_time = time.perf_counter()
             parallel_times.append(end_time - start_time)
 
             # 验证结果一致性（与第一次串行运行比较）
-            if run == 0:
+            if run_idx == 0:
                 parallel_accessible = sum(1 for r in parallel_results if r.accessible)
                 serial_accessible = sum(
                     1 for r in serial_results_list[0] if r.accessible
@@ -148,20 +172,22 @@ def benchmark_method(
                     all_consistent = False
 
                 print(
-                    f"   运行 {run+1}: {parallel_times[-1]:.3f}s, 可及残基: {parallel_accessible}/{len(parallel_results)}"
+                    f"   运行 {run_idx+1}: {parallel_times[-1]:.3f}s, 可及残基: {parallel_accessible}/{len(parallel_results)}"
                 )
             else:
-                print(f"   运行 {run+1}: {parallel_times[-1]:.3f}s")
+                print(f"   运行 {run_idx+1}: {parallel_times[-1]:.3f}s")
 
-        avg_parallel_time = np.mean(parallel_times)
-        std_parallel_time = np.std(parallel_times)
-        speedup = avg_serial_time / avg_parallel_time if avg_parallel_time > 0 else 0
+        avg_parallel_time = float(np.mean(parallel_times))
+        std_parallel_time = float(np.std(parallel_times))
+        speedup = (
+            float(avg_serial_time / avg_parallel_time) if avg_parallel_time > 0 else 0.0
+        )
 
         results["process_times"][num_proc] = {
             "mean": avg_parallel_time,
             "std": std_parallel_time,
             "speedup": speedup,
-            "efficiency": speedup / num_proc if num_proc > 0 else 0,
+            "efficiency": float(speedup / num_proc) if num_proc > 0 else 0.0,
         }
 
         if not all_consistent:
@@ -173,7 +199,7 @@ def benchmark_method(
     return results
 
 
-def print_summary_table(results_list: List[Dict[str, Any]]) -> None:
+def print_summary_table(results_list: list[BenchmarkResult]) -> None:
     """打印性能汇总表格"""
     print(f"\n{'='*80}")
     print("性能对比汇总")
@@ -203,7 +229,7 @@ def print_summary_table(results_list: List[Dict[str, Any]]) -> None:
             )
 
 
-def analyze_scalability(results_list: List[Dict[str, Any]]) -> None:
+def analyze_scalability(results_list: list[BenchmarkResult]) -> None:
     """分析扩展性特征"""
     print(f"\n{'='*80}")
     print("扩展性分析")
@@ -297,7 +323,7 @@ def main():
         method_types = [MethodType.PERATOM]
 
     # 运行基准测试
-    all_results = []
+    all_results: list[BenchmarkResult] = []
 
     for method_type in method_types:
         try:

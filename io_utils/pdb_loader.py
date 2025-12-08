@@ -2,7 +2,6 @@
 PDB文件加载器
 """
 
-from typing import Tuple, List, Optional
 import numpy as np
 from Bio.PDB import PDBParser  # type: ignore
 
@@ -25,9 +24,7 @@ class PDBLoader:
         """
         self.quiet = quiet
 
-    def load(
-        self, pdb_path: str
-    ) -> Tuple[List[ResidueInfo], WaterInfo, Optional[object]]:
+    def load(self, pdb_path: str) -> tuple[list[ResidueInfo], WaterInfo, object | None]:
         """
         加载PDB文件
 
@@ -35,7 +32,7 @@ class PDBLoader:
             pdb_path: PDB文件路径
 
         Returns:
-            Tuple[List[ResidueInfo], WaterInfo, Optional]:
+            tuple[list[ResidueInfo], WaterInfo, object | None]:
                 - 残基列表
                 - 水分子信息
                 - BioPython结构对象（可能为None）
@@ -80,8 +77,8 @@ class PDBLoader:
     def _extract_water_oxygen(
         self,
         residue,
-        water_coords: List,
-        water_names: List,
+        water_coords: list,
+        water_names: list,
     ) -> None:
         """提取水分子氧原子坐标"""
         for atom in residue:
@@ -92,7 +89,7 @@ class PDBLoader:
                 water_coords.append(atom.coord)
                 water_names.append(residue.get_resname())
 
-    def _extract_residue_info(self, chain, residue) -> Optional[ResidueInfo]:
+    def _extract_residue_info(self, chain, residue) -> ResidueInfo | None:
         """提取残基信息"""
         # 收集非氢原子坐标
         atom_coords = []
@@ -122,7 +119,7 @@ class PDBLoader:
 # 兼容性函数
 def load_pdb(
     pdb_path: str, quiet: bool = False
-) -> Tuple[List[ResidueInfo], WaterInfo, Optional[object]]:
+) -> tuple[list[ResidueInfo], WaterInfo, object | None]:
     """
     兼容性函数，保持与原load_pdb.py相同的接口
 
@@ -131,7 +128,7 @@ def load_pdb(
         quiet: 是否静默模式
 
     Returns:
-        Tuple[List[ResidueInfo], WaterInfo, Optional]:
+        tuple[list[ResidueInfo], WaterInfo, object | None]:
             - 残基列表
             - 水分子信息
             - BioPython结构对象

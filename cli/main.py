@@ -19,14 +19,10 @@ def parse_args(args=None):
 
     # 输入文件
     parser.add_argument(
-        "--wet-pdb",
-        required=True,
-        help="水合PDB文件（用于自定义方法分析）"
+        "--wet-pdb", required=True, help="水合PDB文件（用于自定义方法分析）"
     )
     parser.add_argument(
-        "--dry-pdb",
-        required=True,
-        help="无水PDB文件（用于FreeSASA分析）"
+        "--dry-pdb", required=True, help="无水PDB文件（用于FreeSASA分析）"
     )
 
     # 方法选择
@@ -34,27 +30,18 @@ def parse_args(args=None):
         "--method",
         choices=["centroid", "peratom"],
         default="peratom",
-        help="分析方法：centroid（质心法）或 peratom（原子级方法）"
+        help="分析方法：centroid（质心法）或 peratom（原子级方法）",
     )
 
     # 距离参数
     parser.add_argument(
-        "--threshold",
-        type=float,
-        default=3.5,
-        help="可及性判断阈值（Å），默认：3.5"
+        "--threshold", type=float, default=3.5, help="可及性判断阈值（Å），默认：3.5"
     )
     parser.add_argument(
-        "--margin",
-        type=float,
-        default=2.0,
-        help="质心法的额外裕度（Å），默认：2.0"
+        "--margin", type=float, default=2.0, help="质心法的额外裕度（Å），默认：2.0"
     )
     parser.add_argument(
-        "--R",
-        type=float,
-        default=5.0,
-        help="统计水分子的半径（Å），默认：5.0"
+        "--R", type=float, default=5.0, help="统计水分子的半径（Å），默认：5.0"
     )
 
     # 原子级方法参数
@@ -62,50 +49,28 @@ def parse_args(args=None):
         "--fraction-threshold",
         type=float,
         default=0.20,
-        help="原子可及比例阈值（0-1），默认：0.20"
+        help="原子可及比例阈值（0-1），默认：0.20",
     )
     parser.add_argument(
-        "--min-hits",
-        type=int,
-        default=1,
-        help="最小命中原子数，默认：1"
+        "--min-hits", type=int, default=1, help="最小命中原子数，默认：1"
     )
     parser.add_argument(
-        "--small-residue-size",
-        type=int,
-        default=5,
-        help="小残基的原子数阈值，默认：5"
+        "--small-residue-size", type=int, default=5, help="小残基的原子数阈值，默认：5"
     )
 
     # 计算参数
     parser.add_argument(
-        "--chunk",
-        type=int,
-        default=5000,
-        help="分块计算大小，默认：5000"
+        "--chunk", type=int, default=5000, help="分块计算大小，默认：5000"
     )
-    parser.add_argument(
-        "--nproc",
-        type=int,
-        default=1,
-        help="并行进程数，默认：1"
-    )
+    parser.add_argument("--nproc", type=int, default=1, help="并行进程数，默认：1")
 
     # 输出控制
     parser.add_argument(
-        "--output-dir",
-        default="./output",
-        help="输出目录，默认：./output"
+        "--output-dir", default="./output", help="输出目录，默认：./output"
     )
+    parser.add_argument("--verbose", action="store_true", help="显示详细输出")
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="显示详细输出"
-    )
-    parser.add_argument(
-        "--no-comparison",
-        action="store_true",
-        help="不进行FreeSASA对比"
+        "--no-comparison", action="store_true", help="不进行FreeSASA对比"
     )
 
     return parser.parse_args(args)
@@ -190,8 +155,11 @@ def save_results(args, custom_results, sasa_results=None):
         sasa_file = output_dir / f"{Path(args.dry_pdb).stem}_freesasa.csv"
         CSVWriter.write_generic(
             str(sasa_file),
-            [[r["chain"], r["resnum"], r["resname"], r["SASA"], r["Accessible"]] for r in sasa_results],
-            ["chain", "resnum", "resname", "SASA", "Accessible"]
+            [
+                [r["chain"], r["resnum"], r["resname"], r["SASA"], r["Accessible"]]
+                for r in sasa_results
+            ],
+            ["chain", "resnum", "resname", "SASA", "Accessible"],
         )
 
         if args.verbose:
@@ -208,7 +176,7 @@ def compare_results(custom_results, sasa_results):
         chain = item.get("chain", "").strip() or "A"
         resnum = str(item.get("resnum", ""))
         accessible = item.get("Accessible", "No")
-        sasa_map[(chain, resnum)] = (accessible == "Yes")
+        sasa_map[(chain, resnum)] = accessible == "Yes"
 
     match_count = 0
     total = 0
@@ -251,7 +219,7 @@ def main(args=None):
             CSVWriter.write_comparison(
                 str(comparison_file),
                 comparison_table,
-                ["chain", "resnum", "resname", "Custom", "FreeSASA", "Match"]
+                ["chain", "resnum", "resname", "Custom", "FreeSASA", "Match"],
             )
 
             if args.verbose:
@@ -260,7 +228,9 @@ def main(args=None):
                 print(f"对比结果: {comparison_file}")
 
         # 保存结果
-        custom_file = save_results(args, custom_results, sasa_results if not args.no_comparison else None)
+        custom_file = save_results(
+            args, custom_results, sasa_results if not args.no_comparison else None
+        )
 
         if args.verbose:
             print(f"\n分析完成！")
@@ -274,6 +244,7 @@ def main(args=None):
         print(f"错误: {e}", file=sys.stderr)
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         return 1
 

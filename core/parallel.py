@@ -3,7 +3,6 @@
 利用Python 3.14自由线程特性（PEP 703）实现KDTree查询并行化
 """
 
-from typing import List, Optional
 import numpy as np
 from scipy.spatial import KDTree
 import concurrent.futures
@@ -30,7 +29,7 @@ class ParallelKDTreeQuery:
 
     def query_ball_point_parallel(
         self, points: np.ndarray, radius: float
-    ) -> List[List[int]]:
+    ) -> list[list[int]]:
         """
         并行半径查询
 
@@ -46,7 +45,7 @@ class ParallelKDTreeQuery:
             return [self.tree.query_ball_point(p, radius) for p in points]
 
         n_points = len(points)
-        results: List[List[int]] = [[] for _ in range(n_points)]
+        results: list[list[int]] = [[] for _ in range(n_points)]
 
         # 使用ThreadPoolExecutor，利用Python 3.14自由线程特性
         with concurrent.futures.ThreadPoolExecutor(
@@ -145,7 +144,7 @@ class ParallelDistanceMixin:
         """
         super().__init__(**kwargs)  # type: ignore
         self.num_processes = num_processes
-        self._parallel_executor: Optional[ParallelKDTreeQuery] = None
+        self._parallel_executor: ParallelKDTreeQuery | None = None
 
     def _get_parallel_executor(self, tree: KDTree) -> ParallelKDTreeQuery:
         """获取或创建并行查询器"""
@@ -188,9 +187,9 @@ class ParallelDistanceMixin:
 
     def query_atom_distances_parallel(
         self,
-        atom_coords_list: List[np.ndarray],
+        atom_coords_list: list[np.ndarray],
         water_tree: KDTree,
-    ) -> List[np.ndarray]:
+    ) -> list[np.ndarray]:
         """
         并行查询原子距离
 

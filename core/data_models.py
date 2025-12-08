@@ -3,7 +3,6 @@
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Any
 from enum import Enum
 import numpy as np
 
@@ -43,7 +42,7 @@ class WaterInfo:
     """水分子信息"""
 
     coords: np.ndarray  # 水分子氧原子坐标，形状 (n, 3)
-    names: List[str] = field(default_factory=list)  # 水分子名称
+    names: list[str] = field(default_factory=list)  # 水分子名称
 
     def __post_init__(self):
         """数据验证"""
@@ -76,7 +75,7 @@ class AccessibilityResult:
     accessible: bool  # 是否可及
     method: MethodType  # 使用方法
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """转换为字典"""
         return {
             "chain": self.residue.chain,
@@ -108,7 +107,7 @@ class AnalysisConfig:
     num_processes: int = 1  # 并行进程数
 
     # 小残基集合
-    small_residues: Tuple[str, ...] = ("GLY", "ALA", "SER", "THR", "CYS", "PRO")
+    small_residues: tuple[str, ...] = ("GLY", "ALA", "SER", "THR", "CYS", "PRO")
 
     # FreeSASA参数
     sasa_threshold: float = 10.0  # FreeSASA可及性阈值

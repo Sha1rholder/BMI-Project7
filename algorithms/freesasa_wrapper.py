@@ -2,7 +2,6 @@
 FreeSASA包装器
 """
 
-from typing import List, Dict, Any, Optional
 import freesasa
 
 from core.data_models import AnalysisConfig
@@ -14,14 +13,14 @@ class FreeSASAWrapper:
     # 水分子名称集合（与PDB加载器保持一致）
     WATER_NAMES = {"HOH", "WAT", "SOL", "H2O", "TIP3", "TIP3P", "T3P", "W"}
 
-    def __init__(self, config: Optional[AnalysisConfig] = None):
+    def __init__(self, config: AnalysisConfig | None = None):
         """
         Args:
             config: 分析配置
         """
         self.config = config or AnalysisConfig()
 
-    def compute_residue_sasa(self, pdb_file: str) -> List[Dict[str, Any]]:
+    def compute_residue_sasa(self, pdb_file: str) -> list[dict[str, object]]:
         """
         计算残基的溶剂可及表面积
 
@@ -29,7 +28,7 @@ class FreeSASAWrapper:
             pdb_file: PDB文件路径
 
         Returns:
-            List[Dict[str, Any]]: 残基SASA结果列表
+            list[dict[str, object]]: 残基SASA结果列表
                 - chain: 链标识
                 - resnum: 残基编号
                 - resname: 残基名称
@@ -71,7 +70,7 @@ class FreeSASAWrapper:
     @staticmethod
     def compute_simple(
         pdb_file: str, water_names: set, access_threshold: float
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, object]]:
         """
         简单接口，保持与原compute_residue_sasa.py兼容
 
@@ -81,7 +80,7 @@ class FreeSASAWrapper:
             access_threshold: 可及性阈值
 
         Returns:
-            List[Dict[str, Any]]: 残基SASA结果
+            list[dict[str, object]]: 残基SASA结果
         """
         wrapper = FreeSASAWrapper()
         wrapper.WATER_NAMES = water_names

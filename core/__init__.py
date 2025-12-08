@@ -7,7 +7,7 @@ from .data_models import (
     WaterInfo,
     AccessibilityResult,
     AnalysisConfig,
-    MethodType
+    MethodType,
 )
 
 __all__ = [

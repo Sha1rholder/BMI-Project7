@@ -2,7 +2,6 @@
 原子级方法实现
 """
 
-from typing import List, Optional
 import numpy as np
 
 from core.data_models import (
@@ -19,7 +18,7 @@ from core.accessibility_evaluator import PerAtomEvaluator
 class PerAtomMethod:
     """原子级方法"""
 
-    def __init__(self, config: Optional[AnalysisConfig] = None):
+    def __init__(self, config: AnalysisConfig | None = None):
         """
         Args:
             config: 分析配置
@@ -32,10 +31,10 @@ class PerAtomMethod:
 
     def analyze(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         structure,
-    ) -> List[AccessibilityResult]:
+    ) -> list[AccessibilityResult]:
         """
         执行原子级方法分析
 
@@ -45,7 +44,7 @@ class PerAtomMethod:
             structure: BioPython结构对象
 
         Returns:
-            List[AccessibilityResult]: 可及性结果
+            list[AccessibilityResult]: 可及性结果
         """
         if not residues:
             return []

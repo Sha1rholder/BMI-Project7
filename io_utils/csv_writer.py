@@ -1,5 +1,4 @@
 import csv
-from typing import List, Any, Optional
 from pathlib import Path
 
 from core.data_models import AccessibilityResult
@@ -11,7 +10,7 @@ class CSVWriter:
     @staticmethod
     def write_results(
         filepath: str,
-        results: List[AccessibilityResult],
+        results: list[AccessibilityResult],
         include_header: bool = True,
     ) -> None:
         """
@@ -52,8 +51,8 @@ class CSVWriter:
     @staticmethod
     def write_comparison(
         filepath: str,
-        comparison_data: List[List[Any]],
-        header: List[str],
+        comparison_data: list[list[object]],
+        header: list[str],
     ) -> None:
         """
         写入对比结果
@@ -73,8 +72,8 @@ class CSVWriter:
     @staticmethod
     def write_generic(
         filepath: str,
-        data: List[List[Any]],
-        header: Optional[List[str]] = None,
+        data: list[list[object]],
+        header: list[str] | None = None,
     ) -> None:
         """
         通用CSV写入

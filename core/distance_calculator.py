@@ -3,7 +3,6 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
 import numpy as np
 from scipy.spatial import KDTree
 
@@ -17,7 +16,7 @@ class DistanceCalculator(ABC):
     @abstractmethod
     def compute_min_distances(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
     ) -> np.ndarray:
         """
@@ -35,7 +34,7 @@ class DistanceCalculator(ABC):
     @abstractmethod
     def count_waters_within_radius(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         radius: float,
     ) -> np.ndarray:
@@ -67,13 +66,13 @@ class ChunkedDistanceCalculator(DistanceCalculator):
         """
         self.chunk_size = chunk_size
         self.num_processes = num_processes
-        self._water_tree: Optional[KDTree] = None
-        self._water_coords: Optional[np.ndarray] = None
-        self._parallel_query: Optional[ParallelKDTreeQuery] = None
+        self._water_tree: KDTree | None = None
+        self._water_coords: np.ndarray | None = None
+        self._parallel_query: ParallelKDTreeQuery | None = None
 
     def compute_min_distances(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
     ) -> np.ndarray:
         """计算最小距离（分块版本）"""
@@ -98,7 +97,7 @@ class ChunkedDistanceCalculator(DistanceCalculator):
 
     def count_waters_within_radius(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         radius: float,
     ) -> np.ndarray:
@@ -110,9 +109,11 @@ class ChunkedDistanceCalculator(DistanceCalculator):
         water_coords = waters.coords
 
         # 构建或重用KDTree
-        if (self._water_tree is None or
-            self._water_coords is None or
-            not np.array_equal(self._water_coords, water_coords)):
+        if (
+            self._water_tree is None
+            or self._water_coords is None
+            or not np.array_equal(self._water_coords, water_coords)
+        ):
             self._water_tree = KDTree(water_coords)
             self._water_coords = water_coords.copy()
             # 重置并行查询器（树已改变）
@@ -127,12 +128,21 @@ class ChunkedDistanceCalculator(DistanceCalculator):
                 counts[i] = len(indices)
         else:
             # 并行查询
-            if self._parallel_query is None or self._parallel_query.tree is not self._water_tree:
-                self._parallel_query = ParallelKDTreeQuery(self._water_tree, self.num_processes)
+            if (
+                self._parallel_query is None
+                or self._parallel_query.tree is not self._water_tree
+            ):
+                self._parallel_query = ParallelKDTreeQuery(
+                    self._water_tree, self.num_processes
+                )
 
             # 执行并行半径查询
-            neighbor_lists = self._parallel_query.query_ball_point_parallel(res_coords, radius)
-            counts = np.array([len(neighbors) for neighbors in neighbor_lists], dtype=int)
+            neighbor_lists = self._parallel_query.query_ball_point_parallel(
+                res_coords, radius
+            )
+            counts = np.array(
+                [len(neighbors) for neighbors in neighbor_lists], dtype=int
+            )
 
         return counts
 
@@ -154,7 +164,7 @@ class PerAtomDistanceCalculator(DistanceCalculator):
 
     def compute_min_distances(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
     ) -> np.ndarray:
         """
@@ -168,7 +178,7 @@ class PerAtomDistanceCalculator(DistanceCalculator):
 
     def count_waters_within_radius(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         radius: float,
     ) -> np.ndarray:
@@ -178,7 +188,7 @@ class PerAtomDistanceCalculator(DistanceCalculator):
 
     def collect_atom_distances(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         waters: WaterInfo,
         structure,
     ) -> dict:
@@ -205,6 +215,7 @@ class PerAtomDistanceCalculator(DistanceCalculator):
         parallel_query = None
         if self.num_processes > 1 and water_tree is not None:
             from .parallel import ParallelKDTreeQuery
+
             parallel_query = ParallelKDTreeQuery(water_tree, self.num_processes)
 
         # 处理单个残基的函数
@@ -257,13 +268,11 @@ class PerAtomDistanceCalculator(DistanceCalculator):
         else:
             # 并行处理
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.num_processes,
-                thread_name_prefix="atom_dist_worker"
+                max_workers=self.num_processes, thread_name_prefix="atom_dist_worker"
             ) as executor:
                 # 提交所有任务
                 future_to_residue = {
-                    executor.submit(process_residue, r): r
-                    for r in residues
+                    executor.submit(process_residue, r): r for r in residues
                 }
 
                 # 收集结果

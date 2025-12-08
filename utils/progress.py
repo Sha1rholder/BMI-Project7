@@ -4,7 +4,6 @@
 
 import sys
 import time
-from typing import Optional
 
 
 class ProgressBar:
@@ -68,7 +67,7 @@ class ProgressBar:
         print()  # 换行
 
     @staticmethod
-    def iterate(iterable, total: Optional[int] = None, **kwargs):
+    def iterate(iterable, total: int | None = None, **kwargs):
         """
         迭代器包装器
 

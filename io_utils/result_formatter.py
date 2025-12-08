@@ -2,7 +2,6 @@
 结果格式化器
 """
 
-from typing import List, Dict, Any
 from core.data_models import AccessibilityResult
 
 
@@ -10,12 +9,12 @@ class ResultFormatter:
     """结果格式化器"""
 
     @staticmethod
-    def to_dict_list(results: List[AccessibilityResult]) -> List[Dict[str, Any]]:
+    def to_dict_list(results: list[AccessibilityResult]) -> list[dict[str, object]]:
         """转换为字典列表"""
         return [result.to_dict() for result in results]
 
     @staticmethod
-    def to_simple_table(results: List[AccessibilityResult]) -> List[List[Any]]:
+    def to_simple_table(results: list[AccessibilityResult]) -> list[list[object]]:
         """转换为简单表格格式（用于CSV）"""
         table = []
         for result in results:
@@ -32,10 +31,10 @@ class ResultFormatter:
 
     @staticmethod
     def create_comparison_table(
-        custom_results: List[AccessibilityResult],
-        sasa_results: List[Dict[str, Any]],
+        custom_results: list[AccessibilityResult],
+        sasa_results: list[dict[str, object]],
         match_ratio: float,
-    ) -> List[List[Any]]:
+    ) -> list[list[object]]:
         """
         创建对比表格
 
@@ -45,14 +44,14 @@ class ResultFormatter:
             match_ratio: 匹配比例
 
         Returns:
-            List[List[Any]]: 对比表格
+            list[list[object]]: 对比表格
         """
         # 构建SASA结果映射
         sasa_map = {}
         for item in sasa_results:
-            chain = item.get("chain", "").strip() or "A"
+            chain = str(item.get("chain", "")).strip() or "A"
             resnum = str(item.get("resnum", ""))
-            accessible = item.get("Accessible", "No")
+            accessible = str(item.get("Accessible", "No"))
             sasa_map[(chain, resnum)] = accessible
 
         # 构建对比表格
@@ -84,7 +83,7 @@ class ResultFormatter:
         return comparison
 
     @staticmethod
-    def format_summary(results: List[AccessibilityResult]) -> str:
+    def format_summary(results: list[AccessibilityResult]) -> str:
         """格式化摘要信息"""
         total = len(results)
         accessible = sum(1 for r in results if r.accessible)

@@ -26,7 +26,11 @@ chmod +x setup.sh
 # 该脚本可自动创建虚拟环境bmi并安装所有依赖
 ```
 
-### 命令行使用
+### 添加数据
+
+将待处理的pdb文件（如`SUMO1_water.pdb`）放进`./pdb/`内
+
+<!-- ### 命令行使用
 
 ```bash
 # 原子级方法（默认）
@@ -53,7 +57,7 @@ results = method.analyze(residues, waters, structure)
 
 accessible = sum(1 for r in results if r.accessible)
 print(f"可及残基: {accessible}/{len(results)}")
-```
+``` -->
 
 ## 详细教程
 

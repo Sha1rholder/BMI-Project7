@@ -3,7 +3,6 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional
 import numpy as np
 
 from .data_models import ResidueInfo, AccessibilityResult, AnalysisConfig, MethodType
@@ -15,11 +14,11 @@ class AccessibilityEvaluator(ABC):
     @abstractmethod
     def evaluate(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         min_distances: np.ndarray,
         water_counts: np.ndarray,
         config: AnalysisConfig,
-    ) -> List[AccessibilityResult]:
+    ) -> list[AccessibilityResult]:
         """
         评估残基的可及性
 
@@ -30,7 +29,7 @@ class AccessibilityEvaluator(ABC):
             config: 分析配置
 
         Returns:
-            List[AccessibilityResult]: 可及性结果列表
+            list[AccessibilityResult]: 可及性结果列表
         """
         pass
 
@@ -40,11 +39,11 @@ class CentroidEvaluator(AccessibilityEvaluator):
 
     def evaluate(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         min_distances: np.ndarray,
         water_counts: np.ndarray,
         config: AnalysisConfig,
-    ) -> List[AccessibilityResult]:
+    ) -> list[AccessibilityResult]:
         """质心法评估"""
         results = []
         for i, residue in enumerate(residues):
@@ -64,19 +63,19 @@ class PerAtomEvaluator(AccessibilityEvaluator):
     """原子级方法评估器"""
 
     def __init__(self):
-        self._atom_distances_cache: Dict[tuple, np.ndarray] = {}
+        self._atom_distances_cache: dict[tuple, np.ndarray] = {}
 
-    def set_atom_distances(self, atom_distances: Dict[tuple, np.ndarray]):
+    def set_atom_distances(self, atom_distances: dict[tuple, np.ndarray]):
         """设置原子距离缓存"""
         self._atom_distances_cache = atom_distances
 
     def evaluate(
         self,
-        residues: List[ResidueInfo],
+        residues: list[ResidueInfo],
         min_distances: np.ndarray,
         water_counts: np.ndarray,
         config: AnalysisConfig,
-    ) -> List[AccessibilityResult]:
+    ) -> list[AccessibilityResult]:
         """原子级方法评估"""
         results = []
         for i, residue in enumerate(residues):
@@ -152,7 +151,7 @@ class EvaluatorFactory:
     @staticmethod
     def create_evaluator(
         method: MethodType,
-        atom_distances: Optional[Dict[tuple, np.ndarray]] = None,
+        atom_distances: dict[tuple, np.ndarray] | None = None,
     ) -> AccessibilityEvaluator:
         """
         创建评估器
