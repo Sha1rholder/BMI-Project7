@@ -2,10 +2,40 @@
 Main command line interface
 """
 
+"""
+Command line example:
+python cli/main.py --wet-pdb "path/to/wet_structure.pdb" --dry-pdb "path/to/dry_structure.pdb" --method "peratom" --threshold 3.5 --margin 2.0 --R 5.0 --fraction-threshold 0.20 --min-hits 1 --small-residue-size 5 --chunk 5000 --nproc 4 --output-dir "./results" --verbose --no-comparison
+
+explanation:
+python cli/main.py \
+  --wet-pdb "path/to/wet_structure.pdb" \          # Hydrated PDB file (with water molecules)
+  --dry-pdb "path/to/dry_structure.pdb" \          # Raw PDB file (without water, for FreeSASA)
+  --method "peratom" \                             # Analysis method: "centroid" or "peratom"
+  --threshold 3.5 \                                # Accessibility threshold (Å): distance < threshold = accessible
+  --margin 2.0 \                                   # Centroid filter margin (Å): centroid distance > (threshold + margin) = filtered out
+  --R 5.0 \                                        # Radius for water counting (Å): count waters within the radius
+  --fraction-threshold 0.20 \                      # Fraction threshold for peratom method (0-1): higher than this ratio of atoms within threshold is considered accessible
+  --min-hits 1 \                                   # Minimum atom hits for peratom method: at least this count of atoms within threshold is considered accessible
+  --small-residue-size 5 \                         # Small residue threshold: residues with ≤ this count atoms apply different rules
+  --chunk 5000 \                                   # Chunk size for distance calculations: larger ---> more memory and faster
+  --nproc 4 \                                      # Number of parallel processes: use more cores for faster computation
+  --output-dir "./results" \                       # Output directory for results files
+  --verbose \                                      # Show detailed progress and statistics
+  --no-comparison                                  # Skip FreeSASA comparison (dry-pdb still required but not used)
+"""
+
+
 import argparse
 import sys
+import os
 from pathlib import Path
 
+current_dir = os.path.dirname(os.path.abspath(__file__))  # Locate to /cli
+project_root = os.path.dirname(current_dir)  # Locate to program path
+
+sys.path.insert(
+    0, project_root
+)  # Temporarily add the project root directory to the front of the Python module search path (sys.path)
 from core.data_models import AnalysisConfig, MethodType
 from io_utils import PDBLoader, CSVWriter, ResultFormatter
 from algorithms import MethodFactory, FreeSASAWrapper
@@ -19,7 +49,9 @@ def parse_args(args=None):
 
     # Input files
     parser.add_argument(
-        "--wet-pdb", required=True, help="Hydrated PDB file (for custom method analysis)"
+        "--wet-pdb",
+        required=True,
+        help="Hydrated PDB file (for custom method analysis)",
     )
     parser.add_argument(
         "--dry-pdb", required=True, help="Dehydrated PDB file (for FreeSASA analysis)"
@@ -35,13 +67,22 @@ def parse_args(args=None):
 
     # Distance parameters
     parser.add_argument(
-        "--threshold", type=float, default=3.5, help="Accessibility threshold (Å), default: 3.5"
+        "--threshold",
+        type=float,
+        default=3.5,
+        help="Accessibility threshold (Å), default: 3.5",
     )
     parser.add_argument(
-        "--margin", type=float, default=2.0, help="Extra margin for centroid method (Å), default: 2.0"
+        "--margin",
+        type=float,
+        default=2.0,
+        help="Extra margin for centroid method (Å), default: 2.0",
     )
     parser.add_argument(
-        "--R", type=float, default=5.0, help="Radius for counting water molecules (Å), default: 5.0"
+        "--R",
+        type=float,
+        default=5.0,
+        help="Radius for counting water molecules (Å), default: 5.0",
     )
 
     # Per-atom method parameters
@@ -55,14 +96,22 @@ def parse_args(args=None):
         "--min-hits", type=int, default=1, help="Minimum hit atoms, default: 1"
     )
     parser.add_argument(
-        "--small-residue-size", type=int, default=5, help="Small residue atom count threshold, default: 5"
+        "--small-residue-size",
+        type=int,
+        default=5,
+        help="Small residue atom count threshold, default: 5",
     )
 
     # Computation parameters
     parser.add_argument(
-        "--chunk", type=int, default=5000, help="Chunk size for computation, default: 5000"
+        "--chunk",
+        type=int,
+        default=5000,
+        help="Chunk size for computation, default: 5000",
     )
-    parser.add_argument("--nproc", type=int, default=1, help="Number of parallel processes, default: 1")
+    parser.add_argument(
+        "--nproc", type=int, default=1, help="Number of parallel processes, default: 1"
+    )
 
     # Output control
     parser.add_argument(
@@ -169,11 +218,19 @@ def save_results(args, custom_results, sasa_results=None):
 
 
 def compare_results(custom_results, sasa_results):
-    """Compare results"""
-    # Calculate match ratio
+    """Compares custom method results with FreeSASA results and calculates the match ratio."""
+
+    def normalize_chain(c):
+        """Standardizes chain identifiers (logic identical to ResultFormatter._normalize_chain)."""
+        if isinstance(c, str):
+            c = c.strip()
+        else:
+            c = str(c).strip()
+        return c if c else "A"
+
     sasa_map = {}
     for item in sasa_results:
-        chain = item.get("chain", "").strip() or "A"
+        chain = normalize_chain(item.get("chain", ""))
         resnum = str(item.get("resnum", ""))
         accessible = item.get("Accessible", "No")
         sasa_map[(chain, resnum)] = accessible == "Yes"
@@ -182,8 +239,12 @@ def compare_results(custom_results, sasa_results):
     total = 0
 
     for result in custom_results:
-        key = (result.residue.chain, str(result.residue.resnum))
+        chain = normalize_chain(result.residue.chain)
+        resnum = str(result.residue.resnum)
+        key = (chain, resnum)
+
         sasa_accessible = sasa_map.get(key, False)
+
         if result.accessible == sasa_accessible:
             match_count += 1
         total += 1
@@ -205,6 +266,7 @@ def main(args=None):
         residues, custom_results = run_custom_analysis(args, config)
 
         # Run FreeSASA analysis
+        sasa_results = None
         if not args.no_comparison:
             sasa_results = run_freesasa_analysis(args, config)
 
